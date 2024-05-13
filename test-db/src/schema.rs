@@ -3,7 +3,7 @@
 diesel::table! {
     users (id) {
         id -> Int4,
-        timestamp -> Timestamp,
+        created_at -> Timestamp,
         #[max_length = 128]
         name -> Varchar,
     }
