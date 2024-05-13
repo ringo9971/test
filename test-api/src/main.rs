@@ -55,7 +55,7 @@ pub mod read {
     #[derive(Debug, Serialize, Queryable)]
     pub struct User {
         pub id: i32,
-        pub time: NaiveDateTime,
+        pub created_at: NaiveDateTime,
         pub name: String,
     }
 
@@ -87,8 +87,43 @@ pub mod read {
     }
 }
 
+pub mod create {
+    use anyhow::Error;
+    use diesel::Insertable;
+    use diesel::RunQueryDsl;
+    use serde::{Deserialize, Serialize};
+
+    use crate::establish_connection;
+    use crate::schema::users;
+    use crate::schema::users::dsl::*;
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Insertable)]
+    #[diesel(table_name=users)]
+    pub struct User {
+        pub name: String,
+    }
+
+    pub fn create_user(user: User) -> Result<(), Error> {
+        let mut connection = establish_connection().expect("error");
+
+        diesel::insert_into(users)
+            .values(&user)
+            .execute(&mut connection)
+            .expect("error");
+
+        Ok(())
+    }
+}
+
 async fn get_users(query: GetUsersQuery) -> impl Responder {
     match read::get_users(query) {
+        Ok(data) => HttpResponse::Ok().json(data),
+        Err(_err) => HttpResponse::InternalServerError().finish(),
+    }
+}
+
+async fn create_user(req: web::Json<create::User>) -> impl Responder {
+    match create::create_user(req.clone()) {
         Ok(data) => HttpResponse::Ok().json(data),
         Err(_err) => HttpResponse::InternalServerError().finish(),
     }
@@ -107,6 +142,7 @@ async fn main() -> std::io::Result<()> {
                     .max_age(3600),
             )
             .route("/users", web::get().to(get_users))
+            .route("/users", web::post().to(create_user))
     })
     .bind("127.0.0.1:8080")?
     .run()
