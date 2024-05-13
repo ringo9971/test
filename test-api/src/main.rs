@@ -3,14 +3,13 @@ use actix_web::{
     dev::Payload, http::header, web, App, FromRequest, HttpRequest, HttpResponse, HttpServer,
     Responder,
 };
-use anyhow::{Context, Error};
-use chrono::NaiveDateTime;
-use diesel::{Connection, ExpressionMethods, PgConnection, QueryDsl, Queryable, RunQueryDsl};
+use anyhow::Context;
+use diesel::Queryable;
+use diesel::{Connection, PgConnection};
 use futures::future::{err, ok, Ready};
 use serde::{Deserialize, Serialize};
 
 mod schema;
-use crate::schema::users::dsl::*;
 
 const DOTENV_PATH: &str = ".env";
 
@@ -23,21 +22,8 @@ pub fn establish_connection() -> anyhow::Result<PgConnection> {
     PgConnection::establish(&database_url).context("Error connecting to the database")
 }
 
-#[derive(Debug, Serialize, Queryable)]
-struct User {
-    pub id: i32,
-    pub time: NaiveDateTime,
-    pub name: String,
-}
-
-#[derive(Debug, Serialize)]
-struct GetUsersResponse {
-    pub total: usize,
-    pub data: Vec<User>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable)]
-struct GetUsersQuery {
+pub struct GetUsersQuery {
     pub name: Option<String>,
 }
 
@@ -56,28 +42,53 @@ impl FromRequest for GetUsersQuery {
     }
 }
 
-fn _get_users(query: GetUsersQuery) -> Result<GetUsersResponse, Error> {
-    let mut connection = establish_connection().expect("error");
+pub mod read {
+    use anyhow::Error;
+    use chrono::NaiveDateTime;
+    use diesel::{ExpressionMethods, QueryDsl, Queryable, RunQueryDsl};
+    use serde::Serialize;
 
-    let mut q = users.into_boxed();
+    use crate::establish_connection;
+    use crate::schema::users::dsl::*;
+    use crate::GetUsersQuery;
 
-    if let Some(_name) = &query.name {
-        q = q.filter(name.eq(_name))
-    };
+    #[derive(Debug, Serialize, Queryable)]
+    pub struct User {
+        pub id: i32,
+        pub time: NaiveDateTime,
+        pub name: String,
+    }
 
-    let res = match q.load::<User>(&mut connection) {
-        Ok(res) => res,
-        Err(err) => {
-            return Err(Error::msg(err));
-        }
-    };
+    #[derive(Debug, Serialize)]
+    pub struct GetUsersResponse {
+        pub total: usize,
+        pub data: Vec<User>,
+    }
 
-    let total = res.len();
+    pub fn get_users(query: GetUsersQuery) -> Result<GetUsersResponse, Error> {
+        let mut connection = establish_connection().expect("error");
 
-    Ok(GetUsersResponse { total, data: res })
+        let mut q = users.into_boxed();
+
+        if let Some(_name) = &query.name {
+            q = q.filter(name.eq(_name))
+        };
+
+        let res = match q.load::<User>(&mut connection) {
+            Ok(res) => res,
+            Err(err) => {
+                return Err(Error::msg(err));
+            }
+        };
+
+        let total = res.len();
+
+        Ok(GetUsersResponse { total, data: res })
+    }
 }
+
 async fn get_users(query: GetUsersQuery) -> impl Responder {
-    match _get_users(query) {
+    match read::get_users(query) {
         Ok(data) => HttpResponse::Ok().json(data),
         Err(_err) => HttpResponse::InternalServerError().finish(),
     }
