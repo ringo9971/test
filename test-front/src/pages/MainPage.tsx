@@ -1,5 +1,11 @@
+import UserList from "../containers/UserList";
+
 const MainPage = (): JSX.Element => {
-  return <>Hello World</>;
+  return (
+    <>
+      <UserList />
+    </>
+  );
 };
 
 export default MainPage;
