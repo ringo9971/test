@@ -49,7 +49,7 @@ pub mod read {
     use serde::Serialize;
 
     use crate::establish_connection;
-    use crate::schema::users::dsl::*;
+    use crate::schema::users::dsl;
     use crate::GetUsersQuery;
 
     #[derive(Debug, Serialize, Queryable)]
@@ -69,10 +69,10 @@ pub mod read {
     pub fn get_users(query: GetUsersQuery) -> Result<GetUsersResponse, Error> {
         let mut connection = establish_connection().expect("error");
 
-        let mut q = users.into_boxed();
+        let mut q = dsl::users.into_boxed();
 
-        if let Some(_name) = &query.name {
-            q = q.filter(name.eq(_name))
+        if let Some(name) = &query.name {
+            q = q.filter(dsl::name.eq(name))
         };
 
         let res = match q.load::<User>(&mut connection) {
@@ -86,6 +86,22 @@ pub mod read {
 
         Ok(GetUsersResponse { total, data: res })
     }
+
+    pub fn get_user(user_uid: String) -> Result<User, Error> {
+        let mut connection = establish_connection().expect("error");
+
+        let res = match dsl::users
+            .filter(dsl::user_uid.eq(user_uid))
+            .first::<User>(&mut connection)
+        {
+            Ok(res) => res,
+            Err(err) => {
+                return Err(Error::msg(err));
+            }
+        };
+
+        Ok(res)
+    }
 }
 
 pub mod create {
@@ -96,7 +112,7 @@ pub mod create {
 
     use crate::establish_connection;
     use crate::schema::users;
-    use crate::schema::users::dsl::*;
+    use crate::schema::users::dsl;
 
     #[derive(Debug, Clone, Serialize, Deserialize, Insertable)]
     #[diesel(table_name=users)]
@@ -107,7 +123,7 @@ pub mod create {
     pub fn create_user(user: User) -> Result<(), Error> {
         let mut connection = establish_connection().expect("error");
 
-        diesel::insert_into(users)
+        diesel::insert_into(dsl::users)
             .values(&user)
             .execute(&mut connection)
             .expect("error");
@@ -119,14 +135,21 @@ pub mod create {
 async fn get_users(query: GetUsersQuery) -> impl Responder {
     match read::get_users(query) {
         Ok(data) => HttpResponse::Ok().json(data),
-        Err(_err) => HttpResponse::InternalServerError().finish(),
+        Err(err) => HttpResponse::InternalServerError().json(err.to_string()),
+    }
+}
+
+async fn get_user(user_uid: web::Path<String>) -> impl Responder {
+    match read::get_user(user_uid.to_owned()) {
+        Ok(data) => HttpResponse::Ok().json(data),
+        Err(err) => HttpResponse::InternalServerError().json(err.to_string()),
     }
 }
 
 async fn create_user(req: web::Json<create::User>) -> impl Responder {
     match create::create_user(req.clone()) {
         Ok(data) => HttpResponse::Ok().json(data),
-        Err(_err) => HttpResponse::InternalServerError().finish(),
+        Err(err) => HttpResponse::InternalServerError().json(err.to_string()),
     }
 }
 
@@ -143,6 +166,7 @@ async fn main() -> std::io::Result<()> {
                     .max_age(3600),
             )
             .route("/users", web::get().to(get_users))
+            .route("/users/{user_uid}", web::get().to(get_user))
             .route("/users", web::post().to(create_user))
     })
     .bind("127.0.0.1:8080")?
