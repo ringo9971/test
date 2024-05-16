@@ -132,6 +132,38 @@ pub mod create {
     }
 }
 
+pub mod update {
+    use anyhow::Error;
+    use diesel::Insertable;
+    use diesel::{AsChangeset, ExpressionMethods, QueryDsl, RunQueryDsl};
+    use serde::{Deserialize, Serialize};
+
+    use crate::establish_connection;
+    use crate::schema::users;
+    use crate::schema::users::dsl;
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Insertable, AsChangeset)]
+    #[diesel(table_name=users)]
+    pub struct User {
+        pub name: Option<String>,
+    }
+
+    pub fn update_user(user_uid: String, user: User) -> Result<(), Error> {
+        let mut connection = establish_connection().expect("error");
+
+        let target = dsl::users.filter(dsl::user_uid.eq(user_uid));
+
+        let res = diesel::update(target)
+            .set(&user)
+            .execute(&mut connection)
+            .expect("error");
+
+        println!("{}", res);
+
+        Ok(())
+    }
+}
+
 async fn get_users(query: GetUsersQuery) -> impl Responder {
     match read::get_users(query) {
         Ok(data) => HttpResponse::Ok().json(data),
@@ -153,6 +185,13 @@ async fn create_user(req: web::Json<create::User>) -> impl Responder {
     }
 }
 
+async fn update_user(user_uid: web::Path<String>, req: web::Json<update::User>) -> impl Responder {
+    match update::update_user(user_uid.clone(), req.clone()) {
+        Ok(data) => HttpResponse::Ok().json(data),
+        Err(err) => HttpResponse::InternalServerError().json(err.to_string()),
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
@@ -168,6 +207,7 @@ async fn main() -> std::io::Result<()> {
             .route("/users", web::get().to(get_users))
             .route("/users/{user_uid}", web::get().to(get_user))
             .route("/users", web::post().to(create_user))
+            .route("/users/{user_uid}", web::put().to(update_user))
     })
     .bind("127.0.0.1:8080")?
     .run()
