@@ -1,4 +1,7 @@
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import {
+  IconButton,
   Table,
   TableBody,
   TableCell,
@@ -18,8 +21,10 @@ const UsersTable = ({ users }: UsersTableProps): JSX.Element => {
       <TableHead>
         <TableRow>
           <TableCell>ID</TableCell>
-          <TableCell>Name</TableCell>
-          <TableCell>Email</TableCell>
+          <TableCell>名前</TableCell>
+          <TableCell>メール</TableCell>
+          <TableCell>編集</TableCell>
+          <TableCell>削除</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -28,6 +33,16 @@ const UsersTable = ({ users }: UsersTableProps): JSX.Element => {
             <TableCell>{user.id}</TableCell>
             <TableCell>{user.name}</TableCell>
             <TableCell>{user?.email}</TableCell>
+            <TableCell>
+              <IconButton>
+                <EditIcon />
+              </IconButton>
+            </TableCell>
+            <TableCell>
+              <IconButton>
+                <DeleteIcon />
+              </IconButton>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
