@@ -157,12 +157,30 @@ pub mod update {
 
         let target = dsl::users.filter(dsl::user_uid.eq(user_uid));
 
-        let res = diesel::update(target)
+        diesel::update(target)
             .set(&user)
             .execute(&mut connection)
             .expect("error");
 
-        println!("{}", res);
+        Ok(())
+    }
+}
+
+pub mod delete {
+    use anyhow::Error;
+    use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+
+    use crate::establish_connection;
+    use crate::schema::users::dsl;
+
+    pub fn delete_user(user_uid: String) -> Result<(), Error> {
+        let mut connection = establish_connection().expect("error");
+
+        let target = dsl::users.filter(dsl::user_uid.eq(user_uid));
+
+        diesel::delete(target)
+            .execute(&mut connection)
+            .expect("error");
 
         Ok(())
     }
@@ -196,6 +214,13 @@ async fn update_user(user_uid: web::Path<String>, req: web::Json<update::User>) 
     }
 }
 
+async fn delete_user(user_uid: web::Path<String>) -> impl Responder {
+    match delete::delete_user(user_uid.clone()) {
+        Ok(data) => HttpResponse::Ok().json(data),
+        Err(err) => HttpResponse::InternalServerError().json(err.to_string()),
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
@@ -212,6 +237,7 @@ async fn main() -> std::io::Result<()> {
             .route("/users/{user_uid}", web::get().to(get_user))
             .route("/users", web::post().to(create_user))
             .route("/users/{user_uid}", web::put().to(update_user))
+            .route("/users/{user_uid}", web::delete().to(delete_user))
     })
     .bind("127.0.0.1:8080")?
     .run()
