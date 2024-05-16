@@ -25,6 +25,7 @@ pub fn establish_connection() -> anyhow::Result<PgConnection> {
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable)]
 pub struct GetUsersQuery {
     pub name: Option<String>,
+    pub email: Option<String>,
 }
 
 impl FromRequest for GetUsersQuery {
@@ -58,6 +59,7 @@ pub mod read {
         pub user_uid: String,
         pub created_at: NaiveDateTime,
         pub name: String,
+        pub email: Option<String>,
     }
 
     #[derive(Debug, Serialize)]
@@ -118,6 +120,7 @@ pub mod create {
     #[diesel(table_name=users)]
     pub struct User {
         pub name: String,
+        pub email: Option<String>,
     }
 
     pub fn create_user(user: User) -> Result<(), Error> {
@@ -146,6 +149,7 @@ pub mod update {
     #[diesel(table_name=users)]
     pub struct User {
         pub name: Option<String>,
+        pub email: Option<String>,
     }
 
     pub fn update_user(user_uid: String, user: User) -> Result<(), Error> {

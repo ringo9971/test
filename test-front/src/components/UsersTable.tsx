@@ -19,6 +19,7 @@ const UsersTable = ({ users }: UsersTableProps): JSX.Element => {
         <TableRow>
           <TableCell>ID</TableCell>
           <TableCell>Name</TableCell>
+          <TableCell>Email</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -26,6 +27,7 @@ const UsersTable = ({ users }: UsersTableProps): JSX.Element => {
           <TableRow key={user.id}>
             <TableCell>{user.id}</TableCell>
             <TableCell>{user.name}</TableCell>
+            <TableCell>{user?.email}</TableCell>
           </TableRow>
         ))}
       </TableBody>
