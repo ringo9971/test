@@ -55,6 +55,7 @@ pub mod read {
     #[derive(Debug, Serialize, Queryable)]
     pub struct User {
         pub id: i32,
+        pub user_uid: String,
         pub created_at: NaiveDateTime,
         pub name: String,
     }
